@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Insight — 話し方を、構成から変える。</title>
+  <meta name="description" content="ブラウザ上で話した内容をAIが分析し、PREP観点で話の構成を評価。発表・商談・面接の練習に。" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===== ヘッダー ===== -->
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+          <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+          <line x1="12" y1="19" x2="12" y2="22" />
+        </svg>
+      </span>
+      <span class="brand-name">Voice&nbsp;Insight</span>
+    </div>
+    <span class="demo-badge">DEMO</span>
+  </header>
+
+  <main>
+    <!-- ============================================================ -->
+    <!-- 画面1: 録音画面 (S-01)                                        -->
+    <!-- ============================================================ -->
+    <section class="screen is-active" id="screen-record" data-screen="record">
+      <div class="hero">
+        <p class="eyebrow">AI 話し方フィードバック</p>
+        <h1 class="hero-title">話し方を、<span class="grad">構成</span>から変える。</h1>
+        <p class="hero-lead">
+          ブラウザに向かって一人で話すだけ。AIが文字起こしして、<br />
+          <strong>PREP（主張→理由→具体例→結論）</strong>の観点で話の構成を評価します。<br />
+          発表・商談・面接の練習に、登録もログインも不要で。
+        </p>
+      </div>
+
+      <div class="record-card">
+        <!-- 録音前 -->
+        <div class="record-state" data-state="idle">
+          <div class="mic-button-wrap">
+            <button class="mic-button" id="btn-start" aria-label="録音を開始">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            </button>
+          </div>
+          <p class="record-hint">マイクボタンを押して話し始めましょう（最大 5 分）</p>
+        </div>
+
+        <!-- 録音中 -->
+        <div class="record-state" data-state="recording" hidden>
+          <div class="rec-indicator"><span class="rec-dot"></span> 録音中</div>
+          <div class="waveform" id="waveform" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="timer"><span id="timer-elapsed">00:00</span> <span class="timer-max">/ 05:00</span></div>
+          <button class="btn btn-stop" id="btn-stop">停止して分析する</button>
+          <p class="record-hint">5 分に達すると自動で停止し、分析に進みます</p>
+        </div>
+
+        <!-- マイク不許可 -->
+        <div class="record-state record-state--error" data-state="denied" hidden>
+          <div class="state-icon state-icon--warn" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23" />
+              <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+              <path d="M17 16.95A7 7 0 0 1 5 12v-1m14 0v1a7 7 0 0 1-.11 1.23" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+            </svg>
+          </div>
+          <h2 class="state-title">マイクを利用できません</h2>
+          <p class="state-desc">
+            録音にはマイクの利用許可が必要です。ブラウザのアドレスバー左側のアイコンから
+            マイクを「許可」に変更し、もう一度お試しください。
+          </p>
+          <button class="btn btn-primary" data-goto="record" data-reset="idle">もう一度試す</button>
+        </div>
+      </div>
+
+      <!-- プライバシー表示 (NF-04 / 5.3) -->
+      <div class="privacy-note">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        <p>
+          <strong>録音音声・文字起こし・評価結果はいずれも保存しません。</strong>
+          評価はその場限りの一時的な情報です。文字起こしと評価のため、
+          音声やテキストが外部のAIサービスに送信される場合があります。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面2: 処理中画面 (S-02)                                      -->
+    <!-- ============================================================ -->
+    <section class="screen" id="screen-processing" data-screen="processing">
+      <div class="processing-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 class="processing-title">分析しています…</h2>
+        <p class="processing-sub">そのままお待ちください。追加の操作は必要ありません。</p>
+
+        <ol class="steps">
+          <li class="step" data-step="transcribe">
+            <span class="step-icon"></span>
+            <span class="step-label">音声を文字起こし中</span>
+          </li>
+          <li class="step" data-step="evaluate">
+            <span class="step-icon"></span>
+            <span class="step-label">話の構成を評価中</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面3: 評価結果画面 (S-03 / F-04)                             -->
+    <!-- ============================================================ -->
+    <section class="screen" id="screen-result" data-screen="result">
+      <div class="result-head">
+        <p class="eyebrow">評価結果</p>
+        <h1 class="result-title">今回の話の構成フィードバック</h1>
+        <p class="result-note">この結果は保存されません。画面を離れると確認できなくなります。</p>
+      </div>
+
+      <div class="result-grid">
+        <!-- 総合点 -->
+        <div class="card score-card">
+          <div class="score-ring" style="--score: 78;">
+            <div class="score-ring-inner">
+              <span class="score-value">78</span>
+              <span class="score-max">/ 100</span>
+            </div>
+          </div>
+          <p class="score-caption">構成の分かりやすさ</p>
+          <p class="score-comment">主張と具体例は明確。理由づけと締めの結論を補うと、さらに伝わりやすくなります。</p>
+        </div>
+
+        <!-- PREP観点の評価 -->
+        <div class="card prep-card">
+          <h2 class="card-title">PREP 観点の評価</h2>
+          <ul class="prep-list">
+            <li class="prep-item">
+              <div class="prep-row">
+                <span class="prep-key">P<span class="prep-key-sub">Point / 主張</span></span>
+                <span class="prep-tag tag-good">明確</span>
+              </div>
+              <div class="prep-bar"><span style="width: 88%"></span></div>
+              <p class="prep-text">冒頭で「何を伝えたいか」がはっきり提示できています。</p>
+            </li>
+            <li class="prep-item">
+              <div class="prep-row">
+                <span class="prep-key">R<span class="prep-key-sub">Reason / 理由</span></span>
+                <span class="prep-tag tag-warn">やや弱い</span>
+              </div>
+              <div class="prep-bar"><span style="width: 58%"></span></div>
+              <p class="prep-text">理由は述べられていますが、主張との結びつきが弱く感じられます。</p>
+            </li>
+            <li class="prep-item">
+              <div class="prep-row">
+                <span class="prep-key">E<span class="prep-key-sub">Example / 具体例</span></span>
+                <span class="prep-tag tag-good">良い</span>
+              </div>
+              <div class="prep-bar"><span style="width: 82%"></span></div>
+              <p class="prep-text">具体的なエピソードがあり、聞き手がイメージしやすい流れです。</p>
+            </li>
+            <li class="prep-item">
+              <div class="prep-row">
+                <span class="prep-key">P<span class="prep-key-sub">Point / 結論</span></span>
+                <span class="prep-tag tag-warn">改善余地</span>
+              </div>
+              <div class="prep-bar"><span style="width: 52%"></span></div>
+              <p class="prep-text">最後に冒頭の主張へ戻りきれず、締めくくりがやや弱まっています。</p>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 良い点 -->
+        <div class="card list-card good-card">
+          <h2 class="card-title"><span class="card-icon">👍</span> 良い点</h2>
+          <ul class="bullet-list">
+            <li>最初の一言で主張を提示できており、聞き手が話の方向性をつかみやすい。</li>
+            <li>具体例が具体的で、主張の説得力を高められている。</li>
+            <li>全体を通して話す順序に大きな混乱がなく、聞きやすい。</li>
+          </ul>
+        </div>
+
+        <!-- 改善点 -->
+        <div class="card list-card improve-card">
+          <h2 class="card-title"><span class="card-icon">🔧</span> 改善点</h2>
+          <ul class="bullet-list">
+            <li>理由の説明が主張と十分に結びついておらず、「なぜそう言えるのか」が伝わりにくい。</li>
+            <li>話の最後で結論に戻れておらず、要点の印象が薄れている。</li>
+          </ul>
+        </div>
+
+        <!-- 次回への改善提案 -->
+        <div class="card suggest-card">
+          <h2 class="card-title"><span class="card-icon">💡</span> 次回話すときの改善提案</h2>
+          <ul class="suggest-list">
+            <li>
+              <span class="suggest-num">1</span>
+              <p>理由を述べるときは「<strong>なぜなら〜だからです</strong>」と主張に直結させ、根拠を一文で言い切る。</p>
+            </li>
+            <li>
+              <span class="suggest-num">2</span>
+              <p>具体例のあとに「<strong>つまり、最初にお伝えした通り〜</strong>」と冒頭の主張をもう一度繰り返して締める。</p>
+            </li>
+            <li>
+              <span class="suggest-num">3</span>
+              <p>1分以内に「主張→理由→具体例→結論」を一周する構成で、同じテーマをもう一度練習してみる。</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button class="btn btn-primary btn-lg" data-goto="record" data-reset="idle">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          もう一度練習する
+        </button>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面4: エラー表示 (S-04 / NF-06)                              -->
+    <!-- ============================================================ -->
+    <section class="screen" id="screen-error" data-screen="error">
+      <div class="error-card">
+        <div class="state-icon state-icon--error" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <h2 class="state-title">分析に失敗しました</h2>
+        <p class="state-desc">
+          文字起こしまたは評価の処理に失敗しました。通信状況をご確認のうえ、
+          もう一度録音からお試しください。録音した音声は保存されていません。
+        </p>
+        <button class="btn btn-primary" data-goto="record" data-reset="idle">録音からやり直す</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== デモ用ナビ（各画面を直接確認できるツールバー） ===== -->
+  <nav class="demo-nav" aria-label="デモ画面切り替え">
+    <span class="demo-nav-label">デモ画面</span>
+    <button class="demo-nav-btn is-current" data-goto="record" data-reset="idle">録音</button>
+    <button class="demo-nav-btn" data-goto="record" data-reset="recording">録音中</button>
+    <button class="demo-nav-btn" data-goto="record" data-reset="denied">マイク不許可</button>
+    <button class="demo-nav-btn" data-goto="processing">処理中</button>
+    <button class="demo-nav-btn" data-goto="result">評価結果</button>
+    <button class="demo-nav-btn" data-goto="error">エラー</button>
+  </nav>
+
+  <footer class="site-footer">
+    <p>Voice Insight — Phase1 デモ（画面イメージ確認用のモックです。録音・AI分析は動作しません）</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
