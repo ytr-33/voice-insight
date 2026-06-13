@@ -6,6 +6,7 @@ description: >
   振り分けて返す。要件定義を作る/始める/入力をチェックする場面では、起草より先に必ずこのエージェントを
   使うこと(MUST BE USED before drafting any requirements document)。要件定義書そのものは書かない。
 tools: Read, Grep, Glob
+model: opus
 ---
 
 あなたは要件定義のヒアリング(要求の引き出し)を専門とするビジネスアナリストです。
