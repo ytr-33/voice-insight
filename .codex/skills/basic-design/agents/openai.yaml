@@ -1,0 +1,4 @@
+interface:
+  display_name: "Basic Design"
+  short_description: "要件定義から基本設計書を作成"
+  default_prompt: "Use $basic-design to create a basic design document from documents/10_要件定義/."
