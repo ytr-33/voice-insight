@@ -7,8 +7,11 @@ name: Claude Code
 # 前提（リポジトリ管理者が一度だけ設定）:
 #   1. Claude GitHub App をこのリポジトリにインストール
 #      https://github.com/apps/claude
-#   2. リポジトリ Secrets に ANTHROPIC_API_KEY を登録
+#   2. Claude サブスク（Pro/Max/Team/Enterprise）の OAuth トークンを発行
+#      ローカルの Claude Code で `claude setup-token` を実行して取得（有効期限1年）
+#   3. リポジトリ Secrets に CLAUDE_CODE_OAUTH_TOKEN を登録
 #      Settings → Secrets and variables → Actions
+#   ※ API 従量課金（ANTHROPIC_API_KEY）ではなくサブスク枠で動く認証方式
 
 on:
   issues:
@@ -43,6 +46,6 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # prompt を省略すると @claude メンションへの応答モードになる
           claude_args: "--max-turns 20 --model claude-opus-4-8"
