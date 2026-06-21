@@ -38,14 +38,15 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          # PR の差分を抽出（バイナリは除外、肥大化を避けるため上限を設ける）
-          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' > pr.diff
+          # PR の差分を抽出（バイナリは除外、100KB 上限でトークン超過を防ぐ）
+          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' | head -c 102400 > pr.diff
           if [ ! -s pr.diff ]; then
             echo "差分がないためレビューをスキップします。" > review.md
             exit 0
           fi
 
-          PROMPT=$(cat <<'EOF'
+          # プロンプトをファイルに書き出すことでシェル引数のクォート問題を回避する
+          cat > prompt.txt <<'EOF'
           あなたは Voice Insight プロジェクトのコードレビュアーです。
           標準入力で渡される git diff を日本語でレビューし、Markdown で出力してください。
 
@@ -64,9 +65,8 @@ jobs:
           - [致命/重要/軽微] ファイル:行 — 指摘内容と修正案
           指摘がなければ「指摘なし」と書くこと。
           EOF
-          )
 
-          cat pr.diff | claude -p "$PROMPT" --output-format text > review.md
+          claude -p "$(cat prompt.txt)" --output-format text < pr.diff > review.md
 
       - name: Post review as PR comment
         env:
