@@ -1,0 +1,93 @@
+name: Codex Code Review
+
+# 方法1: 公式 GitHub Action (openai/codex-action) による自動レビュー
+# PR の作成・更新（push）時に起動し、差分を Codex がレビューしてコメントを投稿する。
+# 認証は OPENAI_API_KEY（Responses API 課金）を Secrets に登録して使う。
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# 同一 PR への連続 push 時は古い実行をキャンセルして無駄な課金を避ける
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  codex-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      # PR のマージコミットをチェックアウト（リポジトリ権限は持たせない）
+      - uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          persist-credentials: false
+
+      - name: Pre-fetch base and head refs for the PR
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags origin \
+            "$PR_BASE_REF" \
+            "+refs/pull/$PR_NUMBER/head"
+
+      - name: Run Codex
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          # GitHub Secrets に OPENAI_API_KEY を登録しておくこと。
+          # Action 内部の安全なプロキシ経由で Responses API に渡される。
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: read-only
+          prompt: |
+            これは ${{ github.repository }} の PR #${{ github.event.pull_request.number }} です。
+            この PR で導入された変更のみを日本語でレビューしてください。対象差分は:
+              git log --oneline ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+
+            ## プロジェクト固有の必須チェック観点
+            要件定義書（documents/10_要件定義/）に準拠しているか確認すること。
+            - データを一切永続化していないか（録音音声・文字起こし・評価結果。NF-03）
+            - ユーザー管理／ログイン／履歴を追加していないか
+            - 対象が日本語のみになっているか（NF-02）
+            - 録音は最大5分の制約を守っているか（F-01）
+            - Phase1 スコープ（PREP 構成評価のみ／音声特徴分析は対象外）を逸脱していないか
+            - プライバシー表示（保存しない旨・外部AIへ送信される可能性）があるか（NF-04）
+            - エラー時に再録音への導線があるか（NF-06）
+
+            ## 一般観点
+            バグ・セキュリティ・可読性・テスト不足も確認すること。
+            指摘には重大度（致命／重要／軽微）と該当ファイル:行を添えること。
+            問題がなければその旨を簡潔に伝えること。
+
+            出力フォーマット:
+            ## レビュー概要
+            （全体所感を2〜3行）
+            ## 指摘事項
+            - [致命/重要/軽微] ファイル:行 — 指摘内容と修正案
+
+  post_feedback:
+    runs-on: ubuntu-latest
+    needs: codex-review
+    if: needs.codex-review.outputs.final_message != ''
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Post Codex feedback as a PR comment
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.codex-review.outputs.final_message }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const body = "## 🤖 Codex レビュー（公式 Action）\n\n" + process.env.CODEX_FINAL_MESSAGE;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });

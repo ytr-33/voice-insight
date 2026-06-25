@@ -1,0 +1,94 @@
+name: Codex Review (CLI / self-built)
+
+# 方法3: Codex CLI を非対話モード (codex exec) で直接動かす自前レビュー。
+# 差分を抽出して Codex に渡し、レビュー文を生成、gh CLI で PR コメントとして投稿する。
+# 公式 Action を使わず、プロンプト・投稿方法を完全に自前で制御したい場合の構成。
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: codex-review-cli-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cli-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Generate review with Codex
+        env:
+          # codex exec は CI では明示的な認証に CODEX_API_KEY を使う。
+          # GitHub Secrets の OPENAI_API_KEY をそのまま割り当てる。
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # PR の差分を抽出（lock ファイル除外、100KB 上限でトークン超過を防ぐ）
+          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' | head -c 102400 > pr.diff
+          if [ ! -s pr.diff ]; then
+            echo "差分がないためレビューをスキップします。" > review.md
+            exit 0
+          fi
+
+          # 指示文と差分を 1 つのプロンプトにまとめる
+          {
+            cat <<'EOF'
+          あなたは Voice Insight プロジェクトのコードレビュアーです。
+          以下の git diff を日本語でレビューし、Markdown で出力してください。
+
+          プロジェクト固有の必須チェック観点（要件定義書 documents/10_要件定義/ に準拠）:
+          - データを一切永続化していないか（録音音声・文字起こし・評価結果。NF-03）
+          - ユーザー管理／ログイン／履歴を追加していないか
+          - 対象が日本語のみか（NF-02） / 録音は最大5分か（F-01）
+          - Phase1 スコープ（PREP 構成評価のみ／音声特徴分析は対象外）を逸脱していないか
+          - プライバシー表示（NF-04）とエラー時の再録音導線（NF-06）があるか
+
+          一般観点（バグ・セキュリティ・可読性・テスト不足）も確認すること。
+          出力フォーマット:
+          ## レビュー概要
+          （全体所感を2〜3行）
+          ## 指摘事項
+          - [致命/重要/軽微] ファイル:行 — 指摘内容と修正案
+          指摘がなければ「指摘なし」と書くこと。
+
+          ----- ここから git diff -----
+          EOF
+            cat pr.diff
+          } > prompt.txt
+
+          # 非対話モードで実行。read-only サンドボックスでファイル変更・ネットワークを禁止し、
+          # 最終メッセージだけを review.md に書き出す。
+          codex exec \
+            --sandbox read-only \
+            --skip-git-repo-check \
+            --output-last-message review.md \
+            "$(cat prompt.txt)"
+
+      - name: Post review as PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## 🤖 Codex レビュー（CLI / 自前ワークフロー）"
+            echo ""
+            cat review.md
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
