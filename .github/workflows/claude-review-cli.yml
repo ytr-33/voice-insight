@@ -1,0 +1,112 @@
+name: Claude Review (CLI / self-built)
+
+# 方法3: Claude Code CLI を headless mode (claude -p) で直接動かす自前レビュー。
+# 差分を CLI に渡してレビュー文を生成し、gh CLI で PR コメントとして投稿する。
+# 公式 Action を使わず、プロンプト・投稿方法を完全に自前で制御したい場合の構成。
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: claude-review-cli-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cli-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate review with Claude
+        env:
+          # Claude サブスク(Pro/Max)の OAuth トークン方式。
+          # `claude setup-token` で取得したトークンを CLAUDE_CODE_OAUTH_TOKEN として
+          # Secrets に登録しておくこと。CLI は本環境変数を読んで非対話認証する。
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # トークン未設定なら即エラーにする（黙って成功させない）
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN が未設定です。レビューを実行できません。" >&2
+            exit 1
+          fi
+          # PR の差分を抽出（バイナリは除外、100KB 上限でトークン超過を防ぐ）
+          # head をパイプにすると SIGPIPE で git diff が非ゼロ終了し pipefail で誤検知するため分ける
+          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' > pr.full.diff
+          head -c 102400 pr.full.diff > pr.diff
+          if [ ! -s pr.diff ]; then
+            echo "差分がないためレビューをスキップします。" > review.md
+            exit 0
+          fi
+
+          # プロンプトをファイルに書き出すことでシェル引数のクォート問題を回避する
+          cat > prompt.txt <<'EOF'
+          あなたは Voice Insight プロジェクトのコードレビュアーです。
+          標準入力で渡される git diff を日本語でレビューし、Markdown で出力してください。
+
+          プロジェクト固有の必須チェック観点（要件定義書 documents/10_要件定義/ に準拠）:
+          - データを一切永続化していないか（録音音声・文字起こし・評価結果。NF-03）
+          - ユーザー管理／ログイン／履歴を追加していないか
+          - 対象が日本語のみか（NF-02） / 録音は最大5分か（F-01）
+          - Phase1 スコープ（PREP 構成評価のみ／音声特徴分析は対象外）を逸脱していないか
+          - プライバシー表示（NF-04）とエラー時の再録音導線（NF-06）があるか
+
+          一般観点（バグ・セキュリティ・可読性・テスト不足）も確認すること。
+          出力フォーマット:
+          ## レビュー概要
+          （全体所感を2〜3行）
+          ## 指摘事項
+          - [致命/重要/軽微] ファイル:行 — 指摘内容と修正案
+          指摘がなければ「指摘なし」と書くこと。
+          EOF
+
+          # JSON 出力で実行結果を機械判定し、失敗時はジョブをエラーにする
+          set +e
+          claude -p "$(cat prompt.txt)" --output-format json < pr.diff > result.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::claude の実行に失敗しました (exit ${status})。認証トークンを確認してください。" >&2
+            cat result.json >&2 || true
+            exit 1
+          fi
+          # claude が is_error=true を返した場合も失敗扱いにする
+          if [ "$(jq -r '.is_error // empty' result.json)" = "true" ]; then
+            echo "::error::Claude がエラーを返しました。レビューは生成されていません。" >&2
+            jq -r '.result // .error // .' result.json >&2
+            exit 1
+          fi
+          jq -r '.result // empty' result.json > review.md
+          # 結果が空＝正しく処理されていないとみなして失敗させる
+          if [ ! -s review.md ]; then
+            echo "::error::レビュー結果が空です。正しく処理されていません。" >&2
+            exit 1
+          fi
+
+      - name: Post review as PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## 🤖 Claude レビュー（CLI / 自前ワークフロー）"
+            echo ""
+            cat review.md
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md

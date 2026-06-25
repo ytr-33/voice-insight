@@ -1,0 +1,64 @@
+name: Claude Code Review
+
+# 方法1: 公式 GitHub Action (anthropics/claude-code-action) による自動レビュー
+# PR の作成・更新（push）時に起動し、差分をレビューしてインラインコメントを投稿する。
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# 同一 PR への連続 push 時は古い実行をキャンセルして無駄な課金を避ける
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      # トークン未設定だと黙って成功扱いになるのを防ぐため、先に存在を検証する
+      - name: Verify auth token is configured
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN が未設定です。Secret を登録してください。" >&2
+            exit 1
+          fi
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Claude サブスク(Pro/Max)の OAuth トークン方式。
+          # 対話版 claude で `claude setup-token` を実行して取得したトークンを
+          # GitHub Secrets に CLAUDE_CODE_OAUTH_TOKEN として登録しておくこと。
+          # API キー方式に戻す場合は anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }} に差し替える。
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            このリポジトリ（Voice Insight）のプルリクエストを日本語でレビューしてください。
+
+            ## プロジェクト固有の必須チェック観点
+            要件定義書（documents/10_要件定義/）に準拠しているか確認すること。
+            - データを一切永続化していないか（録音音声・文字起こし・評価結果。NF-03）
+            - ユーザー管理／ログイン／履歴を追加していないか
+            - 対象が日本語のみになっているか（NF-02）
+            - 録音は最大5分の制約を守っているか（F-01）
+            - Phase1 スコープ（PREP 構成評価のみ／音声特徴分析は対象外）を逸脱していないか
+            - プライバシー表示（保存しない旨・外部AIへ送信される可能性）があるか（NF-04）
+            - エラー時に再録音への導線があるか（NF-06）
+
+            ## 一般観点
+            バグ・セキュリティ・可読性・テスト不足も確認すること。
+            指摘には重大度（致命／重要／軽微）を添え、該当行にインラインコメントを付けること。
+            問題がなければその旨を簡潔に伝えること。
+          claude_args: |
+            --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*)"
