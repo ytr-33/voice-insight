@@ -41,8 +41,15 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # トークン未設定なら即エラーにする（黙って成功させない）
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN が未設定です。レビューを実行できません。" >&2
+            exit 1
+          fi
           # PR の差分を抽出（バイナリは除外、100KB 上限でトークン超過を防ぐ）
-          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' | head -c 102400 > pr.diff
+          # head をパイプにすると SIGPIPE で git diff が非ゼロ終了し pipefail で誤検知するため分ける
+          git diff "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)*.lock' > pr.full.diff
+          head -c 102400 pr.full.diff > pr.diff
           if [ ! -s pr.diff ]; then
             echo "差分がないためレビューをスキップします。" > review.md
             exit 0
@@ -69,7 +76,28 @@ jobs:
           指摘がなければ「指摘なし」と書くこと。
           EOF
 
-          claude -p "$(cat prompt.txt)" --output-format text < pr.diff > review.md
+          # JSON 出力で実行結果を機械判定し、失敗時はジョブをエラーにする
+          set +e
+          claude -p "$(cat prompt.txt)" --output-format json < pr.diff > result.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::claude の実行に失敗しました (exit ${status})。認証トークンを確認してください。" >&2
+            cat result.json >&2 || true
+            exit 1
+          fi
+          # claude が is_error=true を返した場合も失敗扱いにする
+          if [ "$(jq -r '.is_error // empty' result.json)" = "true" ]; then
+            echo "::error::Claude がエラーを返しました。レビューは生成されていません。" >&2
+            jq -r '.result // .error // .' result.json >&2
+            exit 1
+          fi
+          jq -r '.result // empty' result.json > review.md
+          # 結果が空＝正しく処理されていないとみなして失敗させる
+          if [ ! -s review.md ]; then
+            echo "::error::レビュー結果が空です。正しく処理されていません。" >&2
+            exit 1
+          fi
 
       - name: Post review as PR comment
         env:
