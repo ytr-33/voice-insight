@@ -33,7 +33,10 @@ jobs:
 
       - name: Generate review with Claude
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Claude サブスク(Pro/Max)の OAuth トークン方式。
+          # `claude setup-token` で取得したトークンを CLAUDE_CODE_OAUTH_TOKEN として
+          # Secrets に登録しておくこと。CLI は本環境変数を読んで非対話認証する。
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |

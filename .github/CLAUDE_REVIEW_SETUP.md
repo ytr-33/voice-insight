@@ -4,13 +4,19 @@
 
 ## 共通の前提: Secrets / GitHub App
 
-いずれの方法も Anthropic の認証が必要。以下のどちらかを用意する。
+いずれの方法も Anthropic の認証が必要。**本リポジトリは OAuth トークン方式（サブスク枠）を採用**している。
 
-- **API キー方式**: リポジトリの `Settings > Secrets and variables > Actions` に
-  `ANTHROPIC_API_KEY` を登録する（API 利用分が課金される）。
-- **サブスク方式**: Claude サブスクリプションの OAuth トークンを
-  `CLAUDE_CODE_OAUTH_TOKEN` として登録し、ワークフローの `anthropic_api_key` 行を
-  `claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}` に差し替える。
+- **OAuth トークン方式（採用中）**: 対話版 `claude`（ターミナル）で
+  `claude setup-token` を実行し、表示されたトークンを
+  `Settings > Secrets and variables > Actions` に `CLAUDE_CODE_OAUTH_TOKEN` として登録する。
+  Claude Pro/Max のサブスク枠で動作し、API 従量課金は発生しない。
+  ```bash
+  claude setup-token
+  gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo ytr-33/voice-insight
+  ```
+- **API キー方式（代替）**: `ANTHROPIC_API_KEY` を Secrets に登録し、各ワークフローの
+  `claude_code_oauth_token` 行を `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`
+  （CLI 版は env を `ANTHROPIC_API_KEY`）に差し替える。API 利用分が課金される。
 
 GitHub App は対話版 `claude`（ターミナル）で `/install-github-app` を実行すると、
 インストールと Secret 登録をガイドしてくれる。
