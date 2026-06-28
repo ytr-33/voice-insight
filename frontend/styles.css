@@ -207,6 +207,10 @@ main {
   animation: blink 1.1s steps(2, start) infinite;
 }
 
+.rec-dot.rec-dot--static {
+  animation: none;
+}
+
 @keyframes blink { 50% { opacity: 0.25; } }
 
 /* 波形 */
@@ -225,6 +229,10 @@ main {
   background: var(--grad);
   height: 16px;
   animation: wave 1s ease-in-out infinite;
+}
+
+.waveform.waveform--static span {
+  animation: none;
 }
 
 .waveform span:nth-child(odd) { animation-duration: 0.9s; }

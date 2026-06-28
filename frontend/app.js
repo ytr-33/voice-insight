@@ -24,7 +24,6 @@
   function setRecordState(state) {
     recordStates.forEach((el) => { el.hidden = el.dataset.state !== state; });
     stopTimer();
-    if (state === "recording") startTimer();
   }
 
   function syncNav(screen, recordReset) {
@@ -65,11 +64,12 @@
         if (e.data.size > 0) audioChunks.push(e.data);
       };
       mediaRecorder.start();
-      setRecordState("recording");
-      syncNav("record", "recording");
+      showScreen("recording");
+      startTimer();
+      syncNav("recording");
     } catch {
-      setRecordState("denied");
-      syncNav("record", "denied");
+      showScreen("denied");
+      syncNav("denied");
     }
   }
 
@@ -179,7 +179,27 @@
     });
   });
 
+  // マイク権限の変更を監視（許可→不許可になったら denied 画面へ）
+  async function watchMicPermission() {
+    if (!navigator.permissions) return;
+    try {
+      const status = await navigator.permissions.query({ name: "microphone" });
+      status.onchange = () => {
+        if (status.state === "denied") {
+          stopTimer();
+          stopStream();
+          mediaRecorder = null;
+          showScreen("denied");
+          syncNav("denied");
+        }
+      };
+    } catch {
+      // Permissions API が未対応のブラウザでは無視
+    }
+  }
+
   // 初期表示
   setRecordState("idle");
   syncNav("record", "idle");
+  watchMicPermission();
 })();

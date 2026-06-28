@@ -34,7 +34,7 @@
         <p class="hero-lead">
           ブラウザに向かって一人で話すだけ。AIが文字起こしして、<br />
           <strong>PREP（主張→理由→具体例→結論）</strong>の観点で話の構成を評価します。<br />
-          発表・商談・面接の練習に、登録もログインも不要で。
+          発表・商談・面接の練習に、登録もログインも不要です。
         </p>
       </div>
 
@@ -53,37 +53,6 @@
           <p class="record-hint">マイクボタンを押して話し始めましょう（最大 5 分）</p>
         </div>
 
-        <!-- 録音中 -->
-        <div class="record-state" data-state="recording" hidden>
-          <div class="rec-indicator"><span class="rec-dot"></span> 録音中</div>
-          <div class="waveform" id="waveform" aria-hidden="true">
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span>
-          </div>
-          <div class="timer"><span id="timer-elapsed">00:00</span> <span class="timer-max">/ 05:00</span></div>
-          <button class="btn btn-stop" id="btn-stop">停止して分析する</button>
-          <p class="record-hint">5 分に達すると自動で停止し、分析に進みます</p>
-        </div>
-
-        <!-- マイク不許可 -->
-        <div class="record-state record-state--error" data-state="denied" hidden>
-          <div class="state-icon state-icon--warn" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="1" y1="1" x2="23" y2="23" />
-              <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
-              <path d="M17 16.95A7 7 0 0 1 5 12v-1m14 0v1a7 7 0 0 1-.11 1.23" />
-              <line x1="12" y1="19" x2="12" y2="22" />
-            </svg>
-          </div>
-          <h2 class="state-title">マイクを利用できません</h2>
-          <p class="state-desc">
-            録音にはマイクの利用許可が必要です。ブラウザのアドレスバー左側のアイコンから
-            マイクを「許可」に変更し、もう一度お試しください。
-          </p>
-          <button class="btn btn-primary" data-goto="record" data-reset="idle">もう一度試す</button>
-        </div>
       </div>
 
       <!-- プライバシー表示 (NF-04 / 5.3) -->
@@ -100,7 +69,25 @@
     </section>
 
     <!-- ============================================================ -->
-    <!-- 画面2: 処理中画面 (S-02)                                      -->
+    <!-- 画面2: 録音中画面                                              -->
+    <!-- ============================================================ -->
+    <section class="screen" id="screen-recording" data-screen="recording">
+      <div class="record-card">
+        <div class="rec-indicator"><span class="rec-dot"></span> 録音中</div>
+        <div class="waveform" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="timer"><span id="timer-elapsed">00:00</span> <span class="timer-max">/ 05:00</span></div>
+        <button class="btn btn-stop" id="btn-stop">停止して分析する</button>
+        <p class="record-hint">5 分に達すると自動で停止し、分析に進みます</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面3: 処理中画面 (S-02)                                      -->
     <!-- ============================================================ -->
     <section class="screen" id="screen-processing" data-screen="processing">
       <div class="processing-card">
@@ -122,7 +109,7 @@
     </section>
 
     <!-- ============================================================ -->
-    <!-- 画面3: 評価結果画面 (S-03 / F-04)                             -->
+    <!-- 画面4: 評価結果画面 (S-03 / F-04)                             -->
     <!-- ============================================================ -->
     <section class="screen" id="screen-result" data-screen="result">
       <div class="result-head">
@@ -234,7 +221,29 @@
     </section>
 
     <!-- ============================================================ -->
-    <!-- 画面4: エラー表示 (S-04 / NF-06)                              -->
+    <!-- 画面5: マイク不許可 (NF-06)                                    -->
+    <!-- ============================================================ -->
+    <section class="screen" id="screen-denied" data-screen="denied">
+      <div class="error-card">
+        <div class="state-icon state-icon--warn" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+            <path d="M17 16.95A7 7 0 0 1 5 12v-1m14 0v1a7 7 0 0 1-.11 1.23" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+          </svg>
+        </div>
+        <h2 class="state-title">マイクを利用できません</h2>
+        <p class="state-desc">
+          録音にはマイクの利用許可が必要です。ブラウザのアドレスバー左側のアイコンから
+          マイクを「許可」に変更し、もう一度お試しください。
+        </p>
+        <button class="btn btn-primary" data-goto="record" data-reset="idle">もう一度試す</button>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面6: エラー表示 (S-04 / NF-06)                              -->
     <!-- ============================================================ -->
     <section class="screen" id="screen-error" data-screen="error">
       <div class="error-card">
@@ -259,8 +268,8 @@
   <nav class="demo-nav" aria-label="デモ画面切り替え">
     <span class="demo-nav-label">デモ画面</span>
     <button class="demo-nav-btn is-current" data-goto="record" data-reset="idle">録音</button>
-    <button class="demo-nav-btn" data-goto="record" data-reset="recording">録音中</button>
-    <button class="demo-nav-btn" data-goto="record" data-reset="denied">マイク不許可</button>
+    <button class="demo-nav-btn" data-goto="recording">録音中</button>
+    <button class="demo-nav-btn" data-goto="denied">マイク不許可</button>
     <button class="demo-nav-btn" data-goto="processing">処理中</button>
     <button class="demo-nav-btn" data-goto="result">評価結果</button>
     <button class="demo-nav-btn" data-goto="error">エラー</button>
